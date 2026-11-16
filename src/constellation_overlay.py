@@ -14,6 +14,8 @@ from typing import Any, Iterable, Mapping, Sequence
 import cv2
 import numpy as np
 
+from .preprocessing import InsufficientStarsError, detect_stars
+
 
 DEFAULT_COLOURS = (
     (80, 220, 255),
@@ -40,24 +42,39 @@ def detect_star_centres(
     min_area: int = 2,
     max_area: int = 250,
 ) -> list[tuple[int, int]]:
-    """Return bright connected-component centres inside ``bbox``."""
+    """Return preprocessed bright-star centres inside ``bbox``."""
     height, width = image.shape[:2]
     left, top, right, bottom = _clip_bbox(bbox, width, height)
     roi = image[top:bottom, left:right]
+    try:
+        stars = detect_stars(
+            roi,
+            area_min=min_area,
+            area_max=max_area,
+            n_min=1,
+        )
+    except InsufficientStarsError:
+        stars = np.empty((0, 3))
+
+    points = [(int(round(left + x)), int(round(top + y))) for x, y, _ in stars]
+    if len(points) >= 2:
+        return points
+
+    # Small or low-contrast boxes may not provide enough components for the
+    # adaptive Top-Hat pass; retain the simpler detector as a visual fallback.
     gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY) if roi.ndim == 3 else roi
     gray = cv2.GaussianBlur(gray, (3, 3), 0)
     mean, std = cv2.meanStdDev(gray)
     threshold = max(20.0, float(mean[0, 0] + threshold_sigma * std[0, 0]))
     _, mask = cv2.threshold(gray, threshold, 255, cv2.THRESH_BINARY)
-
     count, _, stats, centroids = cv2.connectedComponentsWithStats(mask, 8)
-    centres: list[tuple[int, int]] = []
+    fallback: list[tuple[int, int]] = []
     for label in range(1, count):
         area = int(stats[label, cv2.CC_STAT_AREA])
         if min_area <= area <= max_area:
             cx, cy = centroids[label]
-            centres.append((int(round(left + cx)), int(round(top + cy))))
-    return centres
+            fallback.append((int(round(left + cx)), int(round(top + cy))))
+    return fallback
 
 
 def _nearest_neighbour_edges(

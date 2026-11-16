@@ -3,9 +3,14 @@
 El módulo `src/constellation_overlay.py` implementa la visualización solicitada:
 
 1. lee las cajas COCO de cada constelación;
-2. detecta los puntos brillantes dentro de cada caja;
+2. preprocesa cada caja con mediana 3x3, Top-Hat morfológico, umbral
+   adaptativo y filtros de forma;
 3. conecta los puntos mediante un esqueleto de vecino más cercano;
 4. escribe el nombre de la constelación sobre una copia de la imagen original.
+
+Si una caja es demasiado pequeña o tiene poco contraste para producir dos
+componentes con el Top-Hat, se conserva el detector de brillo anterior como
+respaldo para que la visualización no pierda sus líneas.
 
 Ejemplo:
 
@@ -37,6 +42,10 @@ identificación geométrica y visualización:
   El método representa las estrellas como un conjunto de puntos y usa sus
   relaciones geométricas para identificar constelaciones:
   <https://doi.org/10.1007/s10015-023-00860-4>
+
+El preprocesado se ha integrado desde
+<https://github.com/danieldlrf/constellations-detection-pid>, concretamente su
+flujo de mediana, Top-Hat y filtrado de componentes conectados.
 
 Las anotaciones actuales de Roboflow contienen cajas de constelación, no la
 correspondencia de cada estrella con una plantilla IAU. Por ello esta primera
