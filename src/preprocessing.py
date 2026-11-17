@@ -1,4 +1,4 @@
-"""Star preprocessing adapted from danieldlrf/constellations-detection-pid."""
+"""Preprocesado de Dani"""
 
 from __future__ import annotations
 
